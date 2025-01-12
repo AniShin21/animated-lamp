@@ -1,17 +1,15 @@
-from collections import defaultdict
 import logging
 import time
 import string
 import random
 import asyncio
 from contextlib import contextmanager
-
 from pyrogram import Client
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
 from bot.config import Config
 from bot.workers import Worker
 from bot.utils.broadcast import Broadcast
+from aiohttp import web  # Importing aiohttp for the dummy server
 
 log = logging.getLogger(__name__)
 
@@ -31,24 +29,35 @@ class ScreenShotBot(Client):
             lambda: int(time.time()) - Config.SLOW_SPEED_DELAY - 1
         )
         self.broadcast_ids = {}
+        self.app = web.Application()  # Create aiohttp application
 
     async def start(self):
         await super().start()
         await self.process_pool.start()
         me = await self.get_me()
         print(f"New session started for {me.first_name} (@{me.username})")
+        
+        # Set up the dummy server to keep the bot alive
+        self.app.router.add_get('/', self.handle_dummy_request)
+        web.run_app(self.app, port=8080)  # Run the dummy server on the specified port
 
     async def stop(self):
         await self.process_pool.stop()
         await super().stop()
         print("Session stopped. Bye!!")
 
+    async def handle_dummy_request(self, request):
+        """
+        This is a dummy HTTP handler to keep the bot alive.
+        It simply responds with a 200 OK status.
+        """
+        return web.Response(text="Bot is running!")
+
     @contextmanager
     def track_broadcast(self, handler):
         """
         Context manager to track broadcasts and generate unique broadcast IDs.
         """
-        # Generate a unique broadcast ID
         broadcast_id = ""
         while True:
             broadcast_id = "".join(
@@ -61,13 +70,12 @@ class ScreenShotBot(Client):
         try:
             yield broadcast_id
         finally:
-            self.broadcast_ids.pop(broadcast_id, None)  # Ensure pop even if an error occurs
+            self.broadcast_ids.pop(broadcast_id, None)
 
     async def start_broadcast(self, broadcast_message, admin_id):
         """
         Method to start the broadcast asynchronously.
         """
-        # Create and run the broadcast task in the background
         asyncio.create_task(self._start_broadcast(broadcast_message, admin_id))
 
     async def _start_broadcast(self, broadcast_message, admin_id):
