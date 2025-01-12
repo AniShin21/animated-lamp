@@ -18,10 +18,15 @@ log = logging.getLogger(__name__)
 class ScreenShotBot(Client):
     def __init__(self):
         super().__init__(
-            bot_token=Config.BOT_TOKEN,
-            api_id=Config.API_ID,
-            api_hash=Config.API_HASH,
-            plugins={"root": "bot/plugins"},
+            name="Bot",
+            api_hash=API_HASH,
+            api_id=APP_ID,
+            plugins={
+                "root": "plugins"
+            },
+            bot_token=TG_BOT_TOKEN
+        )
+        self.LOGGER = LOGGER,
         )
         self.process_pool = Worker()
         self.CHAT_FLOOD = defaultdict(
