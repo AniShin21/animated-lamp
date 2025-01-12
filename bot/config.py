@@ -8,6 +8,7 @@ class Config:
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "8083237896:AAGQBApSmHBn3kp4-cFL7Jyj2ILUvbS6qXY")
     LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002181491329"))
     DATABASE_URL = os.environ.get("DATABASE_URL", "mongodb+srv://Lol:lolxd@cluster0.q5mtx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+    DATABASE_NAME = os.environ.get("DATABASE_NAME", "Cluster0")
     AUTH_USERS = [int(i) for i in os.environ.get("AUTH_USERS", "6450266465").split(" ")]
     MAX_PROCESSES_PER_USER = int(os.environ.get("MAX_PROCESSES_PER_USER", 2))
     MAX_TRIM_DURATION = int(os.environ.get("MAX_TRIM_DURATION", 600))
