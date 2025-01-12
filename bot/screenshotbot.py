@@ -27,7 +27,6 @@ class ScreenShotBot(Client):
             bot_token=TG_BOT_TOKEN
         )
         self.LOGGER = LOGGER,
-        )
         self.process_pool = Worker()
         self.CHAT_FLOOD = defaultdict(
             lambda: int(time.time()) - Config.SLOW_SPEED_DELAY - 1
