@@ -18,7 +18,8 @@ class Singleton(type):
 class Database(metaclass=Singleton):
     def __init__(self):
         self._client = motor.motor_asyncio.AsyncIOMotorClient(Config.DATABASE_URL)
-        self.col = self.db.users
+        self.db = self._client.get_database()  # Get the database
+        self.col = self.db.users  # Access the 'users' collection
 
         self.cache = {}
 
