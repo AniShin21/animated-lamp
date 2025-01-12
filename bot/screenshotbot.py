@@ -37,10 +37,12 @@ class ScreenShotBot(Client):
         await self.process_pool.start()
         me = await self.get_me()
         print(f"New session started for {me.first_name} (@{me.username})")
-        
+
         # Set up the dummy server to keep the bot alive
         self.app.router.add_get('/', self.handle_dummy_request)
-        web.run_app(self.app, port=8080)  # Run the dummy server on the specified port
+        
+        # Start the aiohttp server asynchronously
+        asyncio.create_task(self.run_server())
 
     async def stop(self):
         await self.process_pool.stop()
@@ -53,6 +55,16 @@ class ScreenShotBot(Client):
         It simply responds with a 200 OK status.
         """
         return web.Response(text="Bot is running!")
+
+    async def run_server(self):
+        """
+        Run the aiohttp server within the same event loop.
+        """
+        runner = web.AppRunner(self.app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', 8080)
+        await site.start()
+        print("Dummy server started on port 8080")
 
     @contextmanager
     def track_broadcast(self, handler):
@@ -93,18 +105,16 @@ class ScreenShotBot(Client):
                     chat_id=admin_id,
                     text="Broadcast started. Use the buttons to check the progress or to cancel the broadcast.",
                     reply_to_message_id=broadcast_message.message_id,
-                    reply_markup=InlineKeyboardMarkup([
-                        [
-                            InlineKeyboardButton(
-                                text="Check Progress",
-                                callback_data=f"sts_bdct+{broadcast_id}",
-                            ),
-                            InlineKeyboardButton(
-                                text="Cancel!",
-                                callback_data=f"cncl_bdct+{broadcast_id}",
-                            ),
-                        ]
-                    ]),
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton(
+                            text="Check Progress",
+                            callback_data=f"sts_bdct+{broadcast_id}",
+                        ),
+                        InlineKeyboardButton(
+                            text="Cancel!",
+                            callback_data=f"cncl_bdct+{broadcast_id}",
+                        ),
+                    ]]),
                 )
 
                 # Start the broadcast process
