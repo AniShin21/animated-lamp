@@ -4,7 +4,7 @@ import logging
 import asyncio
 import time
 import io
-
+from typing import Optional
 from pyrogram.errors import (
     FloodWait,
     InputUserDeactivated,
@@ -34,7 +34,7 @@ class Broadcast:
         """Cancel the ongoing broadcast."""
         self.cancelled = True
 
-    async def _send_msg(self, user_id: int, max_retries: int = 5) -> tuple[int, str | None]:
+    async def _send_msg(self, user_id: int, max_retries: int = 5) -> tuple[int, Optional[str]]:
         """
         Send a broadcast message to a user.
 
