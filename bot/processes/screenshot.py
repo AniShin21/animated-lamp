@@ -6,6 +6,7 @@ import logging
 import tempfile
 import datetime
 
+from pyrogram.enums import ChatAction
 from pyrogram.types import InputMediaPhoto, InputMediaDocument
 
 from bot.config import Config
@@ -14,7 +15,6 @@ from bot.messages import Messages as ms
 from bot.database import Database
 from .base import BaseProcess
 from .exception import BaseException
-
 
 log = logging.getLogger(__name__)
 db = Database()
@@ -26,18 +26,19 @@ class ScreenshotsProcessFailure(BaseException):
 
 class ScreenshotsProcess(BaseProcess):
     async def set_media_message(self):
-        self.media_message = self.input_message.message.reply_to_message
+        self.media_message = self.input_message.reply_to_message
 
     async def cancelled(self):
-        await self.input_message.edit_message_text(ms.PROCESS_TIMEOUT)
+        await self.input_message.edit(ms.PROCESS_TIMEOUT)
 
     async def process(self):
         await self.set_media_message()
         _, num_screenshots = self.input_message.data.split("+")
         num_screenshots = int(num_screenshots)
-        await self.input_message.edit_message_text(ms.PROCESSING_REQUEST)
+        await self.input_message.edit(ms.PROCESSING_REQUEST)
+
         try:
-            if self.media_message.empty:
+            if not self.media_message:
                 raise ScreenshotsProcessFailure(
                     for_user=ms.MEDIA_MESSAGE_DELETED,
                     for_admin=ms.MEDIA_MESSAGE_DELETED,
@@ -45,7 +46,8 @@ class ScreenshotsProcess(BaseProcess):
 
             await self.track_user_activity()
             start_time = time.time()
-            await self.input_message.edit_message_text(ms.SCREENSHOTS_START)
+            await self.input_message.edit(ms.SCREENSHOTS_START)
+
             duration = await Utilities.get_duration(self.file_link)
             if isinstance(duration, str):
                 raise ScreenshotsProcessFailure(
@@ -71,6 +73,7 @@ class ScreenshotsProcess(BaseProcess):
             screenshot_mode = await db.get_screenshot_mode(self.chat_id)
             ffmpeg_errors = ""
             watermark_options = "scale=1280:-1"
+
             if watermark:
                 watermark_color_code = await db.get_watermark_color(self.chat_id)
                 watermark_color = Config.COLORS[watermark_color_code]
@@ -78,7 +81,7 @@ class ScreenshotsProcess(BaseProcess):
                 font_size = await db.get_font_size(self.chat_id)
                 width, height = await Utilities.get_dimentions(self.file_link)
                 fontsize = int(
-                    (math.sqrt(width ** 2 + height ** 2) / 1388.0)
+                    (math.sqrt(width**2 + height**2) / 1388.0)
                     * Config.FONT_SIZES[font_size]
                 )
                 x_pos, y_pos = Utilities.get_watermark_coordinates(
@@ -86,7 +89,7 @@ class ScreenshotsProcess(BaseProcess):
                 )
                 watermark_options = (
                     f"drawtext=fontcolor={watermark_color}:fontsize={fontsize}:x={x_pos}:"
-                    f"y={y_pos}:text={watermark}, scale=1280:-1"
+                    f"y={y_pos}:text='{watermark}', scale=1280:-1"
                 )
 
             ffmpeg_cmd = [
@@ -94,8 +97,8 @@ class ScreenshotsProcess(BaseProcess):
                 "-headers",
                 f"IAM:{Config.IAM_HEADER}",
                 "-hide_banner",
-                "-ss",
-                "",  # To be replaced in loop
+                "-ss",  # To be replaced in loop
+                "",
                 "-i",
                 self.file_link,
                 "-vf",
@@ -119,22 +122,22 @@ class ScreenshotsProcess(BaseProcess):
                     ffmpeg_cmd[5] = str(sec)
                     ffmpeg_cmd[-1] = thumbnail_file
                     log.debug(ffmpeg_cmd)
+
                     output = await Utilities.run_subprocess(ffmpeg_cmd)
                     log.debug(
                         "FFmpeg output\n %s \n %s",
                         output[0].decode(),
                         output[1].decode(),
                     )
-                    await self.input_message.edit_message_text(
+
+                    await self.input_message.edit(
                         ms.SCREENSHOTS_PROGRESS.format(
                             current=i + 1, total=num_screenshots
                         )
                     )
+
                     if os.path.exists(thumbnail_file):
-                        if as_file:
-                            InputMedia = InputMediaDocument
-                        else:
-                            InputMedia = InputMediaPhoto
+                        InputMedia = InputMediaDocument if as_file else InputMediaPhoto
 
                         screenshots.append(
                             InputMedia(
@@ -164,23 +167,25 @@ class ScreenshotsProcess(BaseProcess):
                         extra_details=error_file,
                     )
 
-                await self.input_message.edit_message_text(
+                await self.input_message.edit(
                     text=ms.SCREENSHOT_PROCESS_SUCCESS.format(
                         count=num_screenshots, total_count=len(screenshots)
                     )
                 )
-                await self.client.send_chat_action(self.chat_id, "upload_photo")
-                await self.media_message.reply_media_group(screenshots, True)
-                await self.input_message.edit_message_text(
+                await self.client.send_chat_action(self.chat_id, ChatAction.UPLOAD_PHOTO)
+                await self.media_message.reply_media_group(screenshots, quote=True)
+                await self.input_message.edit(
                     ms.PROCESS_UPLOAD_CONFIRM.format(
                         total_process_duration=datetime.timedelta(
                             seconds=int(time.time() - start_time)
                         )
                     )
                 )
+
         except ScreenshotsProcessFailure as e:
             log.error(e)
-            await self.input_message.edit_message_text(e.for_user)
+            await self.input_message.edit(e.for_user)
+
             log_msg = await self.media_message.forward(Config.LOG_CHANNEL)
             if e.extra_details:
                 await log_msg.reply_document(
