@@ -43,10 +43,14 @@ class ScreenShotBot(Client):
 
     @contextmanager
     def track_broadcast(self, handler):
+        """
+        Context manager to track broadcasts and generate unique broadcast IDs.
+        """
+        # Generate a unique broadcast ID
         broadcast_id = ""
         while True:
             broadcast_id = "".join(
-                random.choice(string.ascii_letters) for _ in range(3)
+                random.choice(string.ascii_letters) for _ in range(6)  # Increased ID length
             )
             if broadcast_id not in self.broadcast_ids:
                 break
@@ -55,17 +59,25 @@ class ScreenShotBot(Client):
         try:
             yield broadcast_id
         finally:
-            self.broadcast_ids.pop(broadcast_id)
+            self.broadcast_ids.pop(broadcast_id, None)  # Ensure pop even if an error occurs
 
     async def start_broadcast(self, broadcast_message, admin_id):
+        """
+        Method to start the broadcast asynchronously.
+        """
+        # Create and run the broadcast task in the background
         asyncio.create_task(self._start_broadcast(broadcast_message, admin_id))
 
     async def _start_broadcast(self, broadcast_message, admin_id):
+        """
+        Handle the broadcast sending process.
+        """
         try:
             broadcast_handler = Broadcast(
                 client=self, broadcast_message=broadcast_message
             )
             with self.track_broadcast(broadcast_handler) as broadcast_id:
+                # Send an initial message with buttons for progress and cancellation
                 reply_message = await self.send_message(
                     chat_id=admin_id,
                     text="Broadcast started. Use the buttons to check the progress or to cancel the broadcast.",
@@ -84,8 +96,16 @@ class ScreenShotBot(Client):
                     ]),
                 )
 
+                # Start the broadcast process
                 await broadcast_handler.start()
 
+                # Edit the message after broadcast completion
                 await reply_message.edit_text("Broadcast completed")
+
         except Exception as e:
-            log.error(e, exc_info=True)
+            log.error(f"Error during broadcast: {e}", exc_info=True)
+            # Send an error message to admin if something goes wrong
+            await self.send_message(
+                chat_id=admin_id,
+                text="An error occurred during the broadcast. Please try again later.",
+            )
