@@ -4,6 +4,7 @@ import string
 import random
 import asyncio
 from contextlib import contextmanager
+from collections import defaultdict
 from pyrogram import Client
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from bot.config import Config
