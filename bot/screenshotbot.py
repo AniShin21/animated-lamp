@@ -13,18 +13,16 @@ from bot.config import Config
 from bot.workers import Worker
 from bot.utils.broadcast import Broadcast
 
-
 log = logging.getLogger(__name__)
-
 
 class ScreenShotBot(Client):
     def __init__(self):
         super().__init__(
-            session_name=Config.SESSION_NAME,
+            name=Config.SESSION_NAME,
             bot_token=Config.BOT_TOKEN,
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
-            plugins=dict(root="bot/plugins"),
+            plugins={"root": "bot/plugins"},
         )
         self.process_pool = Worker()
         self.CHAT_FLOOD = defaultdict(
@@ -36,7 +34,7 @@ class ScreenShotBot(Client):
         await super().start()
         await self.process_pool.start()
         me = await self.get_me()
-        print(f"New session started for {me.first_name}({me.username})")
+        print(f"New session started for {me.first_name} (@{me.username})")
 
     async def stop(self):
         await self.process_pool.stop()
@@ -72,7 +70,7 @@ class ScreenShotBot(Client):
                     chat_id=admin_id,
                     text="Broadcast started. Use the buttons to check the progress or to cancel the broadcast.",
                     reply_to_message_id=broadcast_message.message_id,
-                    reply_markup=InlineKeyboardMarkup(
+                    reply_markup=InlineKeyboardMarkup([
                         [
                             InlineKeyboardButton(
                                 text="Check Progress",
@@ -83,7 +81,7 @@ class ScreenShotBot(Client):
                                 callback_data=f"cncl_bdct+{broadcast_id}",
                             ),
                         ]
-                    ),
+                    ]),
                 )
 
                 await broadcast_handler.start()
